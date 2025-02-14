@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>游戏统计</title>
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .stats-container {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        .title {
+            color: #4CAF50;
+            font-size: 32px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+        .stat-item {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-label {
+            color: #aaa;
+            font-size: 18px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FFC107;
+        }
+        .medal {
+            font-size: 40px;
+            margin: 20px 0;
+        }
+        .buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        .button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .button:hover {
+            transform: scale(1.05);
+        }
+        .play-again {
+            background: #4CAF50;
+            color: white;
+        }
+        .share {
+            background: #2196F3;
+            color: white;
+        }
+        .achievement {
+            color: #FFD700;
+            margin: 10px 0;
+            font-size: 16px;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 5px 0;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 2px;
+            transition: width 1s;
+        }
+    </style>
+</head>
+<body>
+    <div class="stats-container">
+        <h1 class="title">游戏统计</h1>
+        <div class="medal">🏆</div>
+        <div class="stat-item">
+            <span class="stat-label">最终得分</span>
+            <span class="stat-value" id="finalScore">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">击败敌人</span>
+            <span class="stat-value" id="enemiesDefeated">0/10</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">命中率</span>
+            <div style="flex: 1; margin: 0 15px;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="accuracyBar"></div>
+                </div>
+            </div>
+            <span class="stat-value" id="accuracy">0%</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">最高连杀</span>
+            <span class="stat-value" id="maxStreak">0</span>
+        </div>
+        <div id="achievements"></div>
+        <div class="buttons">
+            <button class="button play-again" onclick="location.href='index.html'">再玩一次</button>
+            <button class="button share" onclick="shareScore()">分享成绩</button>
+        </div>
+    </div>
+
+    <script>
+        // 从URL参数获取游戏数据
+        const urlParams = new URLSearchParams(window.location.search);
+        const stats = {
+            score: parseInt(urlParams.get('score')) || 0,
+            defeated: parseInt(urlParams.get('defeated')) || 0,
+            accuracy: parseInt(urlParams.get('accuracy')) || 0,
+            maxStreak: parseInt(urlParams.get('maxStreak')) || 0
+        };
+
+        // 动画显示数据
+        function animateNumber(element, target, duration = 1000) {
+            const start = parseInt(element.textContent);
+            const range = target - start;
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const current = Math.floor(start + (range * progress));
+                element.textContent = current.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        // 更新界面
+        window.onload = function() {
+            // 动画显示数据
+            animateNumber(document.getElementById('finalScore'), stats.score);
+            document.getElementById('enemiesDefeated').textContent = `${stats.defeated}/10`;
+            document.getElementById('accuracy').textContent = `${stats.accuracy}%`;
+            document.getElementById('maxStreak').textContent = stats.maxStreak;
+            
+            // 更新命中率进度条
+            document.getElementById('accuracyBar').style.width = `${stats.accuracy}%`;
+
+            // 添加成就
+            const achievements = document.getElementById('achievements');
+            if (stats.accuracy > 80) {
+                addAchievement('🎯 神射手：命中率超过80%！');
+            }
+            if (stats.maxStreak >= 3) {
+                addAchievement('⚡ 连杀大师：达成3连杀！');
+            }
+            if (stats.score > 1000) {
+                addAchievement('💎 高分达人：得分超过1000！');
+            }
+        };
+
+        function addAchievement(text) {
+            const achievement = document.createElement('div');
+            achievement.className = 'achievement';
+            achievement.textContent = text;
+            document.getElementById('achievements').appendChild(achievement);
+            
+            // 延迟显示每个成就
+            setTimeout(() => {
+                achievement.style.opacity = '1';
+            }, 100);
+        }
+
+        function shareScore() {
+            const text = `我在坦克大战中获得了${stats.score}分，击败了${stats.defeated}个敌人，命中率${stats.accuracy}%！来挑战我吧！`;
+            if (navigator.share) {
+                navigator.share({
+                    title: '坦克大战战绩',
+                    text: text,
+                    url: window.location.href
+                }).catch(console.error);
+            } else {
+                // 如果不支持原生分享，则复制到剪贴板
+                navigator.clipboard.writeText(text)
+                    .then(() => alert('战绩已复制到剪贴板！'))
+                    .catch(console.error);
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>坦克大战</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        .game-container {
+            position: relative;
+        }
+        canvas {
+            border: 3px solid #444;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: #2a2a2a;
+        }
+        .game-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #aaa;
+            text-align: center;
+            font-size: 14px;
+        }
+        .level-select {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            padding: 20px;
+        }
+        .level-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.3s, background 0.3s;
+            text-align: center;
+        }
+        .level-card:hover {
+            transform: scale(1.05);
+            background: rgba(255,255,255,0.2);
+        }
+        .level-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .level-name {
+            color: #4CAF50;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .level-description {
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+        .level-stats {
+            display: flex;
+            justify-content: space-around;
+            color: #FFC107;
+            font-size: 14px;
+        }
+        .best-score {
+            color: #2196F3;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="level-select" id="levelSelect">
+        <div class="level-grid" id="levelGrid"></div>
+    </div>
+    <div class="game-container" style="display: none;">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="game-info">
+            <h2>坦克大战</h2>
+            <p id="levelObjective"></p>
+        </div>
+        <div class="controls-info">
+            WASD移动 | 鼠标瞄准 | 点击射击
+        </div>
+    </div>
+    <script src="levels.js"></script>
+    <script src="game.js"></script>
+    <script>
+        // 初始化游戏
+        document.addEventListener('DOMContentLoaded', () => {
+            // 加载本地存储的关卡进度
+            let levelProgress = JSON.parse(localStorage.getItem('tankGameProgress')) || {
+                currentLevel: 1,
+                bestScores: {}
+            };
+
+            function createLevelCards() {
+                const grid = document.getElementById('levelGrid');
+                grid.innerHTML = ''; // 清空现有内容
+                
+                LEVELS.forEach(level => {
+                    const card = document.createElement('div');
+                    card.className = `level-card ${level.id > levelProgress.currentLevel ? 'locked' : ''}`;
+                    
+                    const bestScore = levelProgress.bestScores[level.id] || 0;
+                    
+                    card.innerHTML = `
+                        <div class="level-name">${level.name}</div>
+                        <div class="level-description">${level.description}</div>
+                        <div class="level-stats">
+                            <span>难度: ${'★'.repeat(Math.ceil(level.difficulty))}</span>
+                            <span>目标: ${level.targetKills}个敌人</span>
+                        </div>
+                        ${bestScore > 0 ? `<div class="best-score">最高分: ${bestScore}</div>` : ''}
+                    `;
+                    
+                    if(level.id <= levelProgress.currentLevel) {
+                        card.onclick = () => startLevel(level);
+                    }
+                    
+                    grid.appendChild(card);
+                });
+            }
+
+            function startLevel(level) {
+                document.getElementById('levelSelect').style.display = 'none';
+                document.querySelector('.game-container').style.display = 'block';
+                document.getElementById('levelObjective').textContent = 
+                    `目标：击败${level.targetKills}个敌人`;
+                
+                // 创建新游戏实例
+                window.currentGame = new Game(level);
+            }
+
+            // 初始化关卡选择界面
+            createLevelCards();
+        });
+    </script>
+</body>
+</html> 

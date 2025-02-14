@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>胜利庆祝</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            position: absolute;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            color: #fff;
+        }
+        .heart {
+            color: red;
+            font-size: 100px;
+            animation: pulse 1s infinite;
+            margin: 20px;
+        }
+        .victory-text {
+            font-size: 48px;
+            color: gold;
+            text-shadow: 0 0 10px rgba(255,215,0,0.5);
+            animation: glow 2s infinite;
+        }
+        .replay-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 24px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .replay-button:hover {
+            transform: scale(1.1);
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        @keyframes glow {
+            0% { text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+            50% { text-shadow: 0 0 20px rgba(255,215,0,0.8); }
+            100% { text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+        }
+        .music-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .music-control:hover {
+            transform: scale(1.1);
+        }
+        .music-icon {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fireworks"></canvas>
+    <div class="content">
+        <div class="victory-text">恭喜胜利！</div>
+        <div class="heart">❤</div>
+        <button class="replay-button" onclick="location.href='index.html'">再玩一次</button>
+    </div>
+    
+    <!-- 添加音乐控制按钮 -->
+    <div class="music-control" id="musicControl">
+        <svg class="music-icon" viewBox="0 0 24 24">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+    </div>
+
+    <!-- 添加音频元素 -->
+    <audio id="bgMusic" loop>
+        <source src="https://assets.mixkit.co/music/preview/mixkit-game-victory-2015.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="explosionSound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-firework-explosion-2702.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const canvas = document.getElementById('fireworks');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // 创建多个心形位置
+        function createHeartPositions() {
+            const positions = [];
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // 中心大爱心
+            positions.push({x: centerX, y: centerY, scale: 15});
+            
+            // 四周小爱心
+            positions.push(
+                {x: centerX - 200, y: centerY - 150, scale: 8},
+                {x: centerX + 200, y: centerY - 150, scale: 8},
+                {x: centerX - 200, y: centerY + 150, scale: 8},
+                {x: centerX + 200, y: centerY + 150, scale: 8}
+            );
+            
+            return positions;
+        }
+
+        // 创建心形路径点
+        function createHeartPoints(centerX, centerY, scale = 10) {
+            const points = [];
+            for(let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+                const x = 16 * Math.pow(Math.sin(angle), 3);
+                const y = -(13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle));
+                points.push({
+                    x: centerX + x * scale,
+                    y: centerY + y * scale
+                });
+            }
+            return points;
+        }
+
+        class Firework {
+            constructor(heartPosition) {
+                this.heartPosition = heartPosition;
+                this.heartPoints = createHeartPoints(heartPosition.x, heartPosition.y, heartPosition.scale);
+                this.reset();
+            }
+            
+            reset() {
+                // 从屏幕四周随机位置发射
+                const side = Math.floor(Math.random() * 4);
+                switch(side) {
+                    case 0: // 上边
+                        this.x = Math.random() * canvas.width;
+                        this.y = 0;
+                        break;
+                    case 1: // 右边
+                        this.x = canvas.width;
+                        this.y = Math.random() * canvas.height;
+                        break;
+                    case 2: // 下边
+                        this.x = Math.random() * canvas.width;
+                        this.y = canvas.height;
+                        break;
+                    case 3: // 左边
+                        this.x = 0;
+                        this.y = Math.random() * canvas.height;
+                        break;
+                }
+
+                const targetPoint = this.heartPoints[Math.floor(Math.random() * this.heartPoints.length)];
+                this.targetX = targetPoint.x;
+                this.targetY = targetPoint.y;
+                
+                const angle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+                const speed = 6 + Math.random() * 4; // 随机速度
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                
+                this.particles = [];
+                this.exploded = false;
+                this.trail = []; // 添加尾迹效果
+            }
+            
+            update() {
+                if(!this.exploded) {
+                    // 添加尾迹
+                    this.trail.push({x: this.x, y: this.y, alpha: 1});
+                    if(this.trail.length > 20) this.trail.shift();
+                    
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    
+                    const dx = this.targetX - this.x;
+                    const dy = this.targetY - this.y;
+                    if(Math.sqrt(dx * dx + dy * dy) < 5) {
+                        this.explode();
+                    }
+                } else {
+                    this.particles.forEach((p, i) => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.05; // 减小重力效果
+                        p.alpha = p.life / 50; // 淡出效果
+                        p.life--;
+                        if(p.life <= 0) {
+                            this.particles.splice(i, 1);
+                        }
+                    });
+                    if(this.particles.length === 0) {
+                        this.reset();
+                    }
+                }
+                
+                // 更新尾迹透明度
+                this.trail.forEach(t => t.alpha *= 0.95);
+            }
+            
+            explode() {
+                // 播放爆炸音效
+                const explosionClone = explosionSound.cloneNode();
+                explosionClone.volume = 0.3; // 降低音量
+                explosionClone.play().catch(() => {}); // 忽略可能的自动播放限制错误
+
+                const colors = ['#ff0000', '#ff69b4', '#ff1493', '#ff4444', '#ffb6c1'];
+                for(let i = 0; i < 40; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 3 + 1;
+                    this.particles.push({
+                        x: this.x,
+                        y: this.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 50 + Math.random() * 20,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        alpha: 1
+                    });
+                }
+                this.exploded = true;
+            }
+            
+            draw() {
+                // 绘制尾迹
+                this.trail.forEach(t => {
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${t.alpha})`;
+                    ctx.fill();
+                });
+                
+                if(!this.exploded) {
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    this.particles.forEach(p => {
+                        ctx.fillStyle = p.color.replace(')', `, ${p.alpha})`).replace('rgb', 'rgba');
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
+            }
+        }
+        
+        const heartPositions = createHeartPositions();
+        const fireworks = [];
+        
+        // 为每个心形位置创建多个烟花
+        heartPositions.forEach(pos => {
+            for(let i = 0; i < 3; i++) {
+                fireworks.push(new Firework(pos));
+            }
+        });
+        
+        // 音频控制
+        const bgMusic = document.getElementById('bgMusic');
+        const explosionSound = document.getElementById('explosionSound');
+        const musicControl = document.getElementById('musicControl');
+        let isMusicPlaying = false;
+
+        // 音乐控制点击事件
+        musicControl.addEventListener('click', () => {
+            if (isMusicPlaying) {
+                bgMusic.pause();
+                musicControl.style.opacity = '0.5';
+            } else {
+                bgMusic.play();
+                musicControl.style.opacity = '1';
+            }
+            isMusicPlaying = !isMusicPlaying;
+        });
+
+        // 页面加载时自动播放背景音乐
+        window.addEventListener('load', () => {
+            // 尝试自动播放
+            const playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    isMusicPlaying = true;
+                    musicControl.style.opacity = '1';
+                }).catch(() => {
+                    // 自动播放失败，等待用户交互
+                    isMusicPlaying = false;
+                    musicControl.style.opacity = '0.5';
+                });
+            }
+        });
+
+        // 创建音频上下文和音频源
+        let audioContext;
+        let audioSource;
+        let analyser;
+
+        // 初始化音频可视化
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            audioSource = audioContext.createMediaElementSource(bgMusic);
+            audioSource.connect(analyser);
+            analyser.connect(audioContext.destination);
+            analyser.fftSize = 256;
+        }
+
+        // 修改animate函数，添加音频可视化效果
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 如果音频正在播放，添加音频可视化效果
+            if (isMusicPlaying && analyser) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+
+                // 绘制音频波形
+                const barWidth = canvas.width / bufferLength;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = dataArray[i] / 2;
+                    ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth, barHeight);
+                }
+            }
+
+            fireworks.forEach(f => {
+                f.update();
+                f.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // 初始化音频系统
+        try {
+            initAudio();
+        } catch (e) {
+            console.log('Audio visualization not supported');
+        }
+
+        animate();
+    </script>
+</body>
+</html> 
